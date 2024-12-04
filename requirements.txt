@@ -1,0 +1,4 @@
+tensorflow-rocm
+onnx
+tf2onnx
+numpy<2.0.0
