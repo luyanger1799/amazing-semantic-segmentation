@@ -32,6 +32,7 @@ MODELS = [
     ModelInfo(name="BiSegNet", input_shape=(None, 256, 256, 3)),
 ]
 
+
 for model_info in MODELS:
     model, _ = builder(
         NUM_CLASSES,
@@ -39,10 +40,25 @@ for model_info in MODELS:
         model_info.name,
         None,
     )
+
     spec = (
         tf.TensorSpec(shape=model_info.input_shape, dtype=tf.float32, name="input"),
     )
 
-    onnx_model, _ = tf2onnx.convert.from_keras(model, input_signature=spec, opset=13)
-    onnx.save(onnx_model, f"{model_info.name.lower()}.onnx")
-    print(f"successfully exported {model_info.name}")
+    # Convert to ONNX with TensorRT-compatible options
+    onnx_model, _ = tf2onnx.convert.from_keras(
+        model,
+        input_signature=spec,
+        opset=13,
+    )
+    # Modify Resize node
+    for node in onnx_model.graph.node:
+        if node.op_type == "Resize":
+            for attr in node.attribute:
+                if attr.name == "nearest_mode":
+                    attr.s = b"round_prefer_floor"
+
+    # Save the modified model
+    model_path = f"{model_info.name.lower()}_30.onnx"
+    onnx.save(onnx_model, model_path)
+    print(f"Modified model saved to {model_path}")
