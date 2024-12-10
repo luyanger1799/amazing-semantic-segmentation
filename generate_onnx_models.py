@@ -24,6 +24,7 @@ MODELS = [
     ModelInfo(name="SegNet", input_shape=(None, 256, 256, 3)),
     ModelInfo(name="Bayesian-SegNet", input_shape=(None, 256, 256, 3)),
     ModelInfo(name="PAN", input_shape=(None, 256, 256, 3)),
+    # requires different input size for pyramid pooling layers
     ModelInfo(name="PSPNet", input_shape=(None, 288, 288, 3)),
     ModelInfo(name="RefineNet", input_shape=(None, 256, 256, 3)),
     ModelInfo(name="DenseASPP", input_shape=(None, 256, 256, 3)),
@@ -45,20 +46,19 @@ for model_info in MODELS:
         tf.TensorSpec(shape=model_info.input_shape, dtype=tf.float32, name="input"),
     )
 
-    # Convert to ONNX with TensorRT-compatible options
     onnx_model, _ = tf2onnx.convert.from_keras(
         model,
         input_signature=spec,
         opset=13,
     )
-    # Modify Resize node
+
+    # change resize operation for tensorrt compatibility
     for node in onnx_model.graph.node:
         if node.op_type == "Resize":
             for attr in node.attribute:
                 if attr.name == "nearest_mode":
                     attr.s = b"round_prefer_floor"
 
-    # Save the modified model
     model_path = f"{model_info.name.lower()}_30.onnx"
     onnx.save(onnx_model, model_path)
     print(f"Modified model saved to {model_path}")
